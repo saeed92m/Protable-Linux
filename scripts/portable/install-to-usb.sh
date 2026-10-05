@@ -74,13 +74,17 @@ if [[ "$test_mode" == "1" && "$dev" == /dev/loop* ]]; then
   for part in "$efi" "$root"; do
     if [[ ! -b "$part" ]]; then
       sysfs_dev="/sys/class/block/$(basename "$part")/dev"
+      mm=""
       if [[ -r "$sysfs_dev" ]]; then
         mm=$(cat "$sysfs_dev")
-        if [[ "$mm" =~ ^[0-9]+:[0-9]+$ ]]; then
-          rm -f "$part"
-          mknod "$part" b "${mm%%:*}" "${mm##*:}"
-          chmod 660 "$part"
-        fi
+      fi
+      if [[ ! "$mm" =~ ^[0-9]+:[0-9]+$ ]]; then
+        mm=$(lsblk -nrpo MAJ:MIN "$part" 2>/dev/null | head -n1 || true)
+      fi
+      if [[ "$mm" =~ ^[0-9]+:[0-9]+$ ]]; then
+        rm -f "$part"
+        mknod "$part" b "${mm%%:*}" "${mm##*:}"
+        chmod 660 "$part"
       fi
     fi
   done
@@ -96,13 +100,17 @@ for _ in {1..20}; do
     for part in "$efi" "$root"; do
       if [[ ! -b "$part" ]]; then
         sysfs_dev="/sys/class/block/$(basename "$part")/dev"
+        mm=""
         if [[ -r "$sysfs_dev" ]]; then
           mm=$(cat "$sysfs_dev")
-          if [[ "$mm" =~ ^[0-9]+:[0-9]+$ ]]; then
-            rm -f "$part"
-            mknod "$part" b "${mm%%:*}" "${mm##*:}"
-            chmod 660 "$part"
-          fi
+        fi
+        if [[ ! "$mm" =~ ^[0-9]+:[0-9]+$ ]]; then
+          mm=$(lsblk -nrpo MAJ:MIN "$part" 2>/dev/null | head -n1 || true)
+        fi
+        if [[ "$mm" =~ ^[0-9]+:[0-9]+$ ]]; then
+          rm -f "$part"
+          mknod "$part" b "${mm%%:*}" "${mm##*:}"
+          chmod 660 "$part"
         fi
       fi
     done
