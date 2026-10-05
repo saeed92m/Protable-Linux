@@ -19,11 +19,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y debootstrap squashfs-tools grub-pc-bin grub-efi-amd64-bin grub-efi-amd64-signed xorriso mtools dosfstools
       - name: Build Debian root filesystem
-        run: sudo scripts/build/build-rootfs.sh
+        run: sudo bash scripts/build/build-rootfs.sh
       - name: Add installer entrypoint
-        run: sudo scripts/build/prepare-installer-rootfs.sh
+        run: sudo bash scripts/build/prepare-installer-rootfs.sh
       - name: Build bootable ISO
-        run: sudo scripts/build/build-iso.sh
+        run: sudo bash scripts/build/build-iso.sh
       - name: Validate ISO
         run: |
           file dist/protable-linux-installer-amd64.iso
