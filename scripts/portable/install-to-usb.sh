@@ -65,12 +65,38 @@ esac
 # expected nodes instead of racing udev.
 partx --add "$dev" 2>/dev/null || true
 udevadm settle
+
+# GitHub-hosted CI runners can expose loop partitions through the kernel/lsblk
+# while udev has not created the corresponding /dev nodes. In the explicit
+# loopback test mode only, materialize those nodes from the kernel major:minor
+# mappings. Never do this for physical USB/MMC installation targets.
+if [[ "$test_mode" == "1" && "$dev" == /dev/loop* ]]; then
+  for part in "$efi" "$root"; do
+    if [[ ! -b "$part" ]]; then
+      mm=$(lsblk -nrpo NAME,MAJ:MIN "$dev" | awk -v p="$part" '$1 == p {print $2; exit}')
+      if [[ "$mm" =~ ^[0-9]+:[0-9]+$ ]]; then
+        mknod "$part" b "${mm%%:*}" "${mm##*:}"
+      fi
+    fi
+  done
+fi
+
 for _ in {1..20}; do
   [[ -b "$efi" && -b "$root" ]] && break
   partprobe "$dev" 2>/dev/null || true
   partx --add "$dev" 2>/dev/null || true
   udevadm settle
   sleep 0.5
+  if [[ "$test_mode" == "1" && "$dev" == /dev/loop* ]]; then
+    for part in "$efi" "$root"; do
+      if [[ ! -b "$part" ]]; then
+        mm=$(lsblk -nrpo NAME,MAJ:MIN "$dev" | awk -v p="$part" '$1 == p {print $2; exit}')
+        if [[ "$mm" =~ ^[0-9]+:[0-9]+$ ]]; then
+          mknod "$part" b "${mm%%:*}" "${mm##*:}"
+        fi
+      fi
+    done
+  fi
 done
 [[ -b "$efi" && -b "$root" ]] || {
   echo "Partition device nodes did not appear for $dev." >&2
