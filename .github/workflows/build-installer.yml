@@ -40,11 +40,26 @@ jobs:
       - name: Boot ISO under QEMU UEFI
         run: |
           set -euo pipefail
-          firmware="$(find /usr/share/OVMF /usr/share/qemu -type f \( -name 'OVMF_CODE_4M.fd' -o -name 'OVMF_CODE.fd' -o -name 'OVMF_CODE_4M.ms.fd' \) -print -quit)"
-          test -n "$firmware"
-          echo "Using UEFI firmware: $firmware"
+          code="$(find /usr/share/OVMF /usr/share/qemu -type f \( -name 'OVMF_CODE_4M.fd' -o -name 'OVMF_CODE.fd' -o -name 'OVMF_CODE_4M.ms.fd' \) -print -quit)"
+          vars="$(find /usr/share/OVMF /usr/share/qemu -type f \( -name 'OVMF_VARS_4M.fd' -o -name 'OVMF_VARS.fd' \) -print -quit)"
+          test -n "$code"
+          test -n "$vars"
+          echo "Using UEFI code: $code"
+          echo "Using UEFI vars template: $vars"
+          cp "$vars" qemu-uefi-vars.fd
           set +e
-          timeout 180s qemu-system-x86_64 -machine q35,accel=tcg -m 2048 -smp 2 -bios "$firmware" -cdrom dist/protable-linux-installer-amd64.iso -boot d -display none -serial file:qemu-serial.log -monitor none -no-reboot
+          timeout 180s qemu-system-x86_64 \
+            -machine q35,accel=tcg \
+            -m 2048 \
+            -smp 2 \
+            -drive if=pflash,format=raw,readonly=on,file="$code" \
+            -drive if=pflash,format=raw,file=qemu-uefi-vars.fd \
+            -cdrom dist/protable-linux-installer-amd64.iso \
+            -boot d \
+            -display none \
+            -serial file:qemu-serial.log \
+            -monitor none \
+            -no-reboot
           rc=$?
           set -e
           cat qemu-serial.log || true
