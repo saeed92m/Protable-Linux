@@ -1,0 +1,39 @@
+name: Build Portable-Linux installer image
+on:
+  push:
+    branches: ["main"]
+    paths: ["config/**","scripts/**","docs/**",".github/workflows/build-installer.yml"]
+  pull_request:
+    paths: ["config/**","scripts/**","docs/**",".github/workflows/build-installer.yml"]
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install image build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y debootstrap squashfs-tools grub-pc-bin grub-efi-amd64-bin grub-efi-amd64-signed xorriso mtools dosfstools
+      - name: Build Debian root filesystem
+        run: sudo scripts/build/build-rootfs.sh
+      - name: Add installer entrypoint
+        run: sudo scripts/build/prepare-installer-rootfs.sh
+      - name: Build bootable ISO
+        run: sudo scripts/build/build-iso.sh
+      - name: Validate ISO
+        run: |
+          file dist/protable-linux-installer-amd64.iso
+          test -s dist/protable-linux-installer-amd64.iso
+          sha256sum -c dist/protable-linux-installer-amd64.iso.sha256
+      - name: Upload installer ISO
+        uses: actions/upload-artifact@v4
+        with:
+          name: protable-linux-installer-amd64
+          path: |
+            dist/protable-linux-installer-amd64.iso
+            dist/protable-linux-installer-amd64.iso.sha256
+          if-no-files-found: error
