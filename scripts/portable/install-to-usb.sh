@@ -56,7 +56,7 @@ partprobe "$dev"
 udevadm settle
 
 case "$dev" in
-  /dev/nvme*|/dev/mmcblk*) efi="${dev}p1"; root="${dev}p2" ;;
+  /dev/nvme*|/dev/mmcblk*|/dev/loop*) efi="${dev}p1"; root="${dev}p2" ;;
   *) efi="${dev}1"; root="${dev}2" ;;
 esac
 
