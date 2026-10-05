@@ -80,7 +80,19 @@ materialize_loop_partition_nodes() {
         mm=$(cat "$sysfs_dev")
       fi
       if [[ ! "$mm" =~ ^[0-9]+:[0-9]+$ ]]; then
-        mm=$(lsblk -nrpo NAME,MAJ:MIN "$dev" 2>/dev/null | awk -v wanted="$part" '$1 == wanted {print $2; exit}')
+        mm=$(lsblk -nrpo NAME,MAJ:MIN "$dev" 2>/dev/null |
+          awk -v wanted="$part" '$1 == wanted {print $2; exit}')
+      fi
+      if [[ ! "$mm" =~ ^[0-9]+:[0-9]+$ ]]; then
+        parent_mm=$(lsblk -dnro MAJ:MIN "$dev" 2>/dev/null || true)
+        parent_major="${parent_mm%%:*}"
+        parent_minor="${parent_mm##*:}"
+        partno=$(lsblk -nrpo NAME,PARTN "$dev" 2>/dev/null |
+          awk -v wanted="$part" '$1 == wanted {print $2; exit}')
+        if [[ "$parent_major" =~ ^[0-9]+$ && "$parent_minor" =~ ^[0-9]+$ &&
+              "$partno" =~ ^[0-9]+$ ]]; then
+          mm="$parent_major:$((parent_minor + partno))"
+        fi
       fi
       if [[ "$mm" =~ ^[0-9]+:[0-9]+$ ]]; then
         rm -f "$part"
