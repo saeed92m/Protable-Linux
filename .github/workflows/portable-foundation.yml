@@ -1,0 +1,30 @@
+name: Portable-Linux foundation checks
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  shell-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate shell scripts
+        run: |
+          set -euo pipefail
+          for f in scripts/portable/*.sh; do
+            bash -n "$f"
+          done
+      - name: Validate storage contract
+        run: |
+          grep -q "512 MiB" docs/installer.md
+          grep -q "swapfile" docs/installer.md
+          grep -q "No separate /home" docs/installer.md
+      - name: Verify installer safety gates
+        run: |
+          grep -q 'PORTABLE_LINUX_CONFIRM_TARGET' scripts/portable/install-to-usb.sh
+          grep -q 'TRANSPORT' scripts/portable/validate-target.sh
