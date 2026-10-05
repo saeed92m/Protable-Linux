@@ -84,7 +84,7 @@ materialize_loop_partition_nodes() {
       fi
       if [[ "$mm" =~ ^[0-9]+:[0-9]+$ ]]; then
         rm -f "$part"
-        mknod "$part" b "${{mm%%:*}" "${{mm##*:}"
+        mknod "$part" b "${mm%%:*}" "${mm##*:}"
         chmod 660 "$part"
       fi
     fi
@@ -100,7 +100,6 @@ for _ in {1..20}; do
   udevadm settle
   sleep 0.5
   materialize_loop_partition_nodes
-  fi
 done
 [[ -b "$efi" && -b "$root" ]] || {
   echo "Partition device nodes did not appear for $dev." >&2
