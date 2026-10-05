@@ -95,7 +95,7 @@ cp -a "$rootfs"/. "$tmp/root"/
 
 cat > "$tmp/root/etc/fstab" <<EOF
 LABEL=PORTABLE-ROOT / ext4 defaults,noatime,errors=remount-ro 0 1
-LABEL=PORTABLE-EFI /boot/efi vfat umask=0077 0 0
+LABEL=PORTABLE-EFI /boot/efi vfat umask=0077 0 1
 /swapfile none swap sw,pri=5 0 0
 EOF
 
