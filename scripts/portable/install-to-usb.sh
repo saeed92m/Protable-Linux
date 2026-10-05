@@ -60,6 +60,24 @@ case "$dev" in
   *) efi="${dev}1"; root="${dev}2" ;;
 esac
 
+# Some CI kernels do not materialize loop partitions immediately after
+# partprobe. Explicitly add the partition mappings and wait for the exact
+# expected nodes instead of racing udev.
+partx --add "$dev" 2>/dev/null || true
+udevadm settle
+for _ in {1..20}; do
+  [[ -b "$efi" && -b "$root" ]] && break
+  partprobe "$dev" 2>/dev/null || true
+  partx --add "$dev" 2>/dev/null || true
+  udevadm settle
+  sleep 0.5
+done
+[[ -b "$efi" && -b "$root" ]] || {
+  echo "Partition device nodes did not appear for $dev." >&2
+  lsblk -o NAME,SIZE,TYPE,PKNAME "$dev" >&2 || true
+  exit 7
+}
+
 mkfs.fat -F32 -n PORTABLE-EFI "$efi"
 mkfs.ext4 -F -L PORTABLE-ROOT "$root"
 
@@ -77,7 +95,7 @@ cp -a "$rootfs"/. "$tmp/root"/
 
 cat > "$tmp/root/etc/fstab" <<EOF
 LABEL=PORTABLE-ROOT / ext4 defaults,noatime,errors=remount-ro 0 1
-LABEL=PORTABLE-EFI /boot/efi vfat umask=0077 0 1
+LABEL=PORTABLE-EFI /boot/efi vfat umask=0077 0 0
 /swapfile none swap sw,pri=5 0 0
 EOF
 
