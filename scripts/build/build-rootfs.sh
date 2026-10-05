@@ -36,11 +36,20 @@ systemctl enable lightdm
 useradd -m -s /bin/bash portable
 usermod -aG sudo portable
 echo 'portable:portable' | chpasswd
-printf 'portable ALL=(ALL) NOPASSWD:ALL\n' > /etc/sudoers.d/portable
+printf 'portable ALL=(ALL) NOPASSWD:ALL
+' > /etc/sudoers.d/portable
 chmod 440 /etc/sudoers.d/portable
-printf 'GRUB_TIMEOUT=3\nGRUB_CMDLINE_LINUX_DEFAULT="quiet splash"\n' > /etc/default/grub
+printf 'GRUB_TIMEOUT=3
+GRUB_CMDLINE_LINUX_DEFAULT="quiet splash"
+' > /etc/default/grub
 mkdir -p /etc/skel/Documents /etc/skel/Projects /etc/skel/data
 CHROOT
 rm -f "$ROOT/etc/machine-id"
 mkdir -p "$ROOT/etc/machine-id"
-printf 'Portable-Linux target rootfs built from Debian %s (%s).\n' "$DEBIAN_VERSION" "$DEBIAN_CODENAME" > "$ROOT/etc/portable-linux-release"
+mkdir -p "$ROOT/usr/local/libexec/portable-linux" "$ROOT/etc/systemd/system"
+cp scripts/portable/first-boot.sh "$ROOT/usr/local/libexec/portable-linux/first-boot"
+cp scripts/portable/portable-swap.service "$ROOT/etc/systemd/system/portable-swap.service"
+chmod 0755 "$ROOT/usr/local/libexec/portable-linux/first-boot"
+ln -sf /etc/systemd/system/portable-swap.service "$ROOT/etc/systemd/system/multi-user.target.wants/portable-swap.service"
+printf 'Portable-Linux target rootfs built from Debian %s (%s).
+' "$DEBIAN_VERSION" "$DEBIAN_CODENAME" > "$ROOT/etc/portable-linux-release"
