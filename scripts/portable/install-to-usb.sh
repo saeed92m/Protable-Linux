@@ -95,9 +95,14 @@ for _ in {1..20}; do
   if [[ "$test_mode" == "1" && "$dev" == /dev/loop* ]]; then
     for part in "$efi" "$root"; do
       if [[ ! -b "$part" ]]; then
-        mm=$(lsblk -nrpo NAME,MAJ:MIN "$dev" | awk -v p="$part" '$1 == p {print $2; exit}')
-        if [[ "$mm" =~ ^[0-9]+:[0-9]+$ ]]; then
-          mknod "$part" b "${mm%%:*}" "${mm##*:}"
+        sysfs_dev="/sys/class/block/$(basename "$part")/dev"
+        if [[ -r "$sysfs_dev" ]]; then
+          mm=$(cat "$sysfs_dev")
+          if [[ "$mm" =~ ^[0-9]+:[0-9]+$ ]]; then
+            rm -f "$part"
+            mknod "$part" b "${mm%%:*}" "${mm##*:}"
+            chmod 660 "$part"
+          fi
         fi
       fi
     done
