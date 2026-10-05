@@ -39,10 +39,15 @@ jobs:
           sha256sum -c dist/protable-linux-installer-amd64.iso.sha256
       - name: Boot ISO under QEMU UEFI
         run: |
+          set -euo pipefail
+          firmware="$(find /usr/share/OVMF /usr/share/qemu -type f \( -name 'OVMF_CODE_4M.fd' -o -name 'OVMF_CODE.fd' -o -name 'OVMF_CODE_4M.ms.fd' \) -print -quit)"
+          test -n "$firmware"
+          echo "Using UEFI firmware: $firmware"
           set +e
-          timeout 180s qemu-system-x86_64             -machine q35,accel=tcg             -m 2048             -smp 2             -bios /usr/share/OVMF/OVMF_CODE_4M.fd             -cdrom dist/protable-linux-installer-amd64.iso             -boot d             -display none             -serial file:qemu-serial.log             -monitor none             -no-reboot
+          timeout 180s qemu-system-x86_64 -machine q35,accel=tcg -m 2048 -smp 2 -bios "$firmware" -cdrom dist/protable-linux-installer-amd64.iso -boot d -display none -serial file:qemu-serial.log -monitor none -no-reboot
           rc=$?
           set -e
+          cat qemu-serial.log || true
           grep -Eqi 'Reached target (multi-user|graphical)|Started (Light Display Manager|Network Manager)' qemu-serial.log
           if [[ $rc -ne 0 && $rc -ne 124 ]]; then
             echo "QEMU exited unexpectedly with status $rc" >&2
