@@ -1,22 +1,25 @@
 # Storage Layout
 
-The initial 64 GB USB target uses a simple single-root layout.
+Portable-Linux deliberately uses the simplest persistent USB layout.
 
-| Partition | Target | Filesystem | Purpose |
+| Partition / file | Size policy | Filesystem | Purpose |
 |---|---:|---|---|
-| EFI System Partition | ~512 MiB | FAT32 | UEFI boot |
-| Root | ~53–54 GiB | ext4 | OS and /home |
-| Emergency swap | ~4 GiB | swap | Last-resort fallback |
+| EFI System Partition | 512 MiB | FAT32 | UEFI boot |
+| Root | All remaining capacity | ext4 | OS, /home, applications, projects and user data |
+| /swapfile | 0–4 GiB | swapfile | Emergency disk swap inside root |
 
-A small amount of remaining capacity may be left unused/reserved if required by the final installer.
+There is **no separate /home partition** and no separate swap partition.
 
-## Root policy
-There is intentionally no separate /home partition. /home is a directory inside the root filesystem.
+## Capacity policy
 
-## Memory policy
-ZRAM is not a disk partition. It is the preferred compressed swap layer in RAM.
+The installer calculates target capacity at installation time. EFI is fixed at 512 MiB and Root receives everything else. The swapfile is created inside Root and therefore does not fragment the partition layout.
 
-Disk swap exists only as a fallback. The final configuration should give ZRAM higher priority and keep disk swapping conservative because the target medium is USB flash storage.
+The persistent disk-swap ceiling is 4 GiB. ZRAM is the preferred primary swap mechanism.
 
-## Boot partitioning
-GPT is preferred. A small BIOS Boot partition may be added if required for reliable GRUB Legacy BIOS boot on GPT media.
+## Boot policy
+
+GPT + UEFI is the first implementation target. The EFI bootloader is installed in removable-media mode so the USB does not depend on an internal disk's EFI entry. A Legacy BIOS compatibility path is planned as a subsequent validation milestone.
+
+## Data safety
+
+All persistent user data lives inside Root. Removing the USB from a running system is unsafe; users must shut down or unmount it normally before removal.
