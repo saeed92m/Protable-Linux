@@ -8,26 +8,35 @@
 - [x] Define UEFI/Legacy portability target
 - [x] Record HP v150w 64 GB reference device
 
-## Phase 1 — Minimal base
-- [ ] Select exact antiX/Debian release
-- [ ] Build reproducible installation procedure
-- [ ] Create USB partitioning and boot setup
+## Phase 1 — Persistent USB implementation
+- [x] Define 512 MiB EFI + single ext4 Root contract
+- [x] Define in-root swapfile contract (0–4 GiB)
+- [x] Add non-destructive target validation
+- [x] Add guarded USB installer foundation
+- [x] Add first-boot swap policy
+- [x] Add CI shell/contract checks
+- [ ] Select exact Debian base release
+- [ ] Build reproducible minimal root filesystem
+- [ ] Integrate GRUB and removable UEFI boot
 - [ ] Configure ZRAM
-- [ ] Configure conservative emergency swap
-- [ ] Configure lightweight desktop
-- [ ] Validate persistence
+- [ ] Configure lightweight desktop/session
+- [ ] Produce first bootable image
 
-## Phase 2 — Portability validation
-- [ ] UEFI boot test
-- [ ] Legacy BIOS boot test
-- [ ] Hardware detection test
-- [ ] Network/Wi-Fi test
-- [ ] Graphics/session test
-- [ ] Suspend/resume test where supported
+## Phase 2 — Hardware and persistence validation
+- [ ] UEFI boot test on HP v150w
 - [ ] Reboot persistence test
+- [ ] Install/update application and verify persistence
+- [ ] File/settings persistence test
+- [ ] Boot on a second compatible x86-64 machine
+- [ ] Network/Wi-Fi validation
+- [ ] Intel/AMD/NVIDIA graphics validation
+- [ ] Legacy BIOS validation
 
-## Phase 3 — Release
-- [ ] Document installation/recovery
-- [ ] Produce checksummed release image or installer
-- [ ] Define versioning and release contract
-- [ ] Publish first portable base release
+## Phase 3 — Safety, recovery and release
+- [ ] Recovery environment
+- [ ] Optional full-root encryption
+- [ ] Integrity/recovery checks
+- [ ] Deterministic release image
+- [ ] SHA-256 checksums and release manifest
+- [ ] Installation/recovery documentation
+- [ ] First public portable release
