@@ -47,8 +47,8 @@ cat "$fstab"
 grep -q '^LABEL=PORT-ROOT / ext4 ' "$fstab" || { echo "Missing root fstab entry" >&2; exit 20; }
 grep -q '^LABEL=PORT-EFI /boot/efi ' "$fstab" || { echo "Missing EFI fstab entry" >&2; exit 21; }
 grep -q '^/swapfile none swap ' "$fstab" || { echo "Missing swapfile fstab entry" >&2; exit 22; }
-[[ -d "$mount_dir/boot/efi/EFI/PortableLinux" ]] || {
-  echo "Missing PortableLinux EFI loader directory" >&2
+[[ -f "$mount_dir/boot/efi/EFI/BOOT/BOOTX64.EFI" ]] || {
+  echo "Missing removable UEFI bootloader" >&2
   find "$mount_dir/boot/efi/EFI" -maxdepth 2 -type f -print 2>/dev/null || true
   exit 23
 }
