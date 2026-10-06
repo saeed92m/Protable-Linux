@@ -1,0 +1,13 @@
+[Unit]
+Description=Portable-Linux persistent swapfile fallback
+After=local-fs.target
+Before=multi-user.target
+ConditionPathIsMountPoint=/
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/libexec/portable-linux/first-boot
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
