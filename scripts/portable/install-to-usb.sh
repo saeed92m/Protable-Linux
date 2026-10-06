@@ -63,10 +63,6 @@ esac
 partx --add "$dev" 2>/dev/null || true
 udevadm settle
 
-# GitHub-hosted CI runners can expose loop partitions through the kernel/lsblk
-# while udev has not created the corresponding /dev nodes. In the explicit
-# loopback test mode only, materialize those nodes from the kernel major:minor
-# mappings. Never do this for physical USB/MMC installation targets.
 materialize_loop_partition_nodes() {
   [[ "$test_mode" == "1" && "$dev" == /dev/loop* ]] || return 0
   for part in "$efi" "$root"; do
@@ -116,8 +112,6 @@ done
   exit 7
 }
 
-# FAT filesystem labels are limited to 11 characters.
-# Keep labels stable and short for cross-tool compatibility.
 EFI_LABEL="PORT-EFI"
 ROOT_LABEL="PORT-ROOT"
 mkfs.fat -F32 -n "$EFI_LABEL" "$efi"
@@ -125,10 +119,20 @@ mkfs.ext4 -F -L "$ROOT_LABEL" "$root"
 
 tmp=$(mktemp -d)
 cleanup() {
-  umount -R "$tmp" 2>/dev/null || true
+  # Unmount target filesystems first, then the recursive chroot bind mounts.
+  # Explicit reverse-order cleanup avoids leaving the physical target mounted
+  # after the installer exits.
+  sync || true
+  umount -R "$tmp/root/boot/efi" 2>/dev/null || true
+  umount -R "$tmp/root/dev" 2>/dev/null || true
+  umount -R "$tmp/root/proc" 2>/dev/null || true
+  umount -R "$tmp/root/sys" 2>/dev/null || true
+  umount -R "$tmp/root" 2>/dev/null || true
+  umount -R "$tmp/efi" 2>/dev/null || true
   rmdir "$tmp" 2>/dev/null || true
 }
 trap cleanup EXIT
+
 mkdir -p "$tmp/efi" "$tmp/root"
 mount "$root" "$tmp/root"
 mkdir -p "$tmp/root/boot/efi"
@@ -154,11 +158,6 @@ if [[ -x "$tmp/root/usr/sbin/grub-install" ]]; then
     chroot "$tmp/root" /usr/sbin/grub-install --target=x86_64-efi --efi-directory=/boot/efi --bootloader-id=PortableLinux --removable --recheck
   fi
   chroot "$tmp/root" update-grub || true
-  umount -R "$tmp/root/dev" 2>/dev/null || true
-  umount -R "$tmp/root/proc" 2>/dev/null || true
-  umount -R "$tmp/root/sys" 2>/dev/null || true
-else
-  echo "Rootfs does not contain grub-install; bootloader installation deferred." >&2
 fi
 
 sync
