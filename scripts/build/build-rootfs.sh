@@ -35,10 +35,15 @@ systemctl enable NetworkManager
 systemctl enable lightdm
 useradd -m -s /bin/bash portable
 usermod -aG sudo portable
-echo 'portable:portable' | chpasswd
+passwd -d portable
 printf 'portable ALL=(ALL) NOPASSWD:ALL
 ' > /etc/sudoers.d/portable
 chmod 440 /etc/sudoers.d/portable
+mkdir -p /etc/lightdm/lightdm.conf.d
+printf '[Seat:*]
+autologin-user=portable
+autologin-user-timeout=0
+' > /etc/lightdm/lightdm.conf.d/50-portable-autologin.conf
 printf 'GRUB_TIMEOUT=3
 GRUB_CMDLINE_LINUX_DEFAULT="quiet splash"
 ' > /etc/default/grub
