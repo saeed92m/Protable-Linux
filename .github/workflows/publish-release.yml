@@ -1,0 +1,108 @@
+name: Publish first Protable-Linux release
+
+on:
+  push:
+    branches: ["main"]
+    paths:
+      - ".github/workflows/publish-release.yml"
+      - "config/**"
+      - "scripts/**"
+      - "docs/**"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  RELEASE_TAG: v0.1.0
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Check whether release already exists
+        id: existing
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "Release $RELEASE_TAG already exists; nothing to publish."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.existing.outputs.exists != 'true'
+
+      - name: Install image build dependencies
+        if: steps.existing.outputs.exists != 'true'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y debootstrap squashfs-tools grub-pc-bin grub-efi-amd64-bin grub-efi-amd64-signed xorriso mtools dosfstools qemu-system-x86 ovmf
+
+      - name: Build Debian root filesystem
+        if: steps.existing.outputs.exists != 'true'
+        run: sudo bash scripts/build/build-rootfs.sh
+
+      - name: Add installer entrypoint
+        if: steps.existing.outputs.exists != 'true'
+        run: sudo bash scripts/build/prepare-installer-rootfs.sh
+
+      - name: Validate built root filesystem
+        if: steps.existing.outputs.exists != 'true'
+        run: |
+          test -s build/rootfs/etc/portable-linux-release
+          test -n "$(find build/rootfs/boot -maxdepth 1 -name 'vmlinuz-*' -print -quit)"
+          test -n "$(find build/rootfs/boot -maxdepth 1 -name 'initrd.img-*' -print -quit)"
+          test -x build/rootfs/usr/sbin/grub-install
+          test -x build/rootfs/usr/local/bin/portable-install
+          test -f build/rootfs/etc/systemd/system/portable-swap.service
+
+      - name: Build bootable ISO
+        if: steps.existing.outputs.exists != 'true'
+        run: sudo bash scripts/build/build-iso.sh
+
+      - name: Normalize artifact ownership
+        if: steps.existing.outputs.exists != 'true'
+        run: sudo chown -R "$USER:$USER" dist
+
+      - name: Validate ISO and checksum
+        if: steps.existing.outputs.exists != 'true'
+        run: |
+          set -euo pipefail
+          test -s dist/protable-linux-installer-amd64.iso
+          sha256sum -c dist/protable-linux-installer-amd64.iso.sha256
+
+      - name: Generate release manifest
+        if: steps.existing.outputs.exists != 'true'
+        run: |
+          set -euo pipefail
+          sha256sum dist/protable-linux-installer-amd64.iso > dist/protable-linux-installer-amd64.iso.sha256
+          {
+            echo "product=Protable-Linux"
+            echo "release=$RELEASE_TAG"
+            echo "debian_codename=$(grep '^DEBIAN_CODENAME=' config/debian-release.env | cut -d= -f2)"
+            echo "debian_version=$(grep '^DEBIAN_VERSION=' config/debian-release.env | cut -d= -f2)"
+            echo "debian_point_release=$(grep '^DEBIAN_POINT_RELEASE=' config/debian-release.env | cut -d= -f2)"
+            echo "git_sha=$GITHUB_SHA"
+            echo "iso_sha256=$(cut -d' ' -f1 dist/protable-linux-installer-amd64.iso.sha256)"
+          } > dist/protable-linux-installer-amd64.manifest.txt
+
+      - name: Publish GitHub release
+        if: steps.existing.outputs.exists != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$RELEASE_TAG"             --repo "$GITHUB_REPOSITORY"             --target "$GITHUB_SHA"             --title "Protable-Linux $RELEASE_TAG"             --generate-notes             dist/protable-linux-installer-amd64.iso             dist/protable-linux-installer-amd64.iso.sha256             dist/protable-linux-installer-amd64.manifest.txt
+
+      - name: Verify published release
+        if: steps.existing.outputs.exists != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release view "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY"
+          gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --pattern 'protable-linux-installer-amd64.iso.sha256' --dir verify
+          test -s verify/protable-linux-installer-amd64.iso.sha256
