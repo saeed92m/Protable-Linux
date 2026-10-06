@@ -38,6 +38,8 @@ efi_type=$(blkid -o value -s TYPE "$efi")
 efi_label=$(blkid -o value -s LABEL "$efi")
 root_type=$(blkid -o value -s TYPE "$root")
 root_label=$(blkid -o value -s LABEL "$root")
+echo "EFI: type=$efi_type label=$efi_label"
+echo "ROOT: type=$root_type label=$root_label"
 
 [[ "$efi_type" == "vfat" ]] || { echo "Unexpected EFI filesystem: $efi_type" >&2; exit 11; }
 [[ "$efi_label" == "PORT-EFI" ]] || { echo "Unexpected EFI label: $efi_label" >&2; exit 12; }
@@ -55,31 +57,34 @@ root_size=$(blockdev --getsize64 "$root")
   exit 16
 }
 
-# The installer owns its temporary mount tree. Ensure no mount leaked from
-# the installer before mounting the target for post-install validation.
-for _ in {1..10}; do
-  if ! findmnt -rn -S "$root" >/dev/null 2>&1 && ! findmnt -rn -S "$efi" >/dev/null 2>&1; then
-    break
-  fi
-  umount "$efi" 2>/dev/null || true
-  umount "$root" 2>/dev/null || true
-  sleep 0.2
-done
 if findmnt -rn -S "$root" >/dev/null 2>&1 || findmnt -rn -S "$efi" >/dev/null 2>&1; then
-  echo "Installer leaked a target mount; refusing to continue." >&2
+  echo "Installer leaked a target mount:" >&2
   findmnt -rn -S "$root" || true
   findmnt -rn -S "$efi" || true
   exit 17
 fi
 
-mkdir -p /tmp/portable-linux-test-mount
-mount "$root" /tmp/portable-linux-test-mount
-grep -q '^LABEL=PORT-ROOT / ext4 ' /tmp/portable-linux-test-mount/etc/fstab
-grep -q '^LABEL=PORT-EFI /boot/efi ' /tmp/portable-linux-test-mount/etc/fstab
-grep -q '^/swapfile none swap ' /tmp/portable-linux-test-mount/etc/fstab
-[[ -d /tmp/portable-linux-test-mount/boot/efi/EFI/PortableLinux ]]
-[[ -f /tmp/portable-linux-test-mount/etc/portable-linux-release ]]
-[[ -f /tmp/portable-linux-test-mount/usr/local/bin/portable-install ]]
-! lsblk -nrpo NAME,MOUNTPOINT "$LOOP" | grep -q '/home'
+mount_dir=/tmp/portable-linux-test-mount
+mkdir -p "$mount_dir"
+mount "$root" "$mount_dir"
+
+fstab="$mount_dir/etc/fstab"
+echo "Validating installed root filesystem at $mount_dir"
+echo "--- /etc/fstab ---"
+cat "$fstab"
+echo "--- required paths ---"
+ls -ld "$mount_dir/boot/efi" "$mount_dir/boot/efi/EFI/PortableLinux" "$mount_dir/usr/local/bin/portable-install" "$mount_dir/etc/portable-linux-release"
+
+grep -q '^LABEL=PORT-ROOT / ext4 ' "$fstab" || { echo "Missing root fstab entry" >&2; exit 20; }
+grep -q '^LABEL=PORT-EFI /boot/efi ' "$fstab" || { echo "Missing EFI fstab entry" >&2; exit 21; }
+grep -q '^/swapfile none swap ' "$fstab" || { echo "Missing swapfile fstab entry" >&2; exit 22; }
+[[ -d "$mount_dir/boot/efi/EFI/PortableLinux" ]] || { echo "Missing PortableLinux EFI loader directory" >&2; exit 23; }
+[[ -f "$mount_dir/etc/portable-linux-release" ]] || { echo "Missing release metadata" >&2; exit 24; }
+[[ -f "$mount_dir/usr/local/bin/portable-install" ]] || { echo "Missing installer entrypoint" >&2; exit 25; }
+
+if lsblk -nrpo NAME,MOUNTPOINT "$LOOP" | grep -q '/home'; then
+  echo "Unexpected /home mount detected." >&2
+  exit 26
+fi
 
 echo "Loopback installer integration test: PASS"
