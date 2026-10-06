@@ -15,7 +15,7 @@ cat > build/iso/boot/grub/grub.cfg <<'EOF'
 set timeout=5
 set default=0
 menuentry "Portable-Linux installer/live environment" {
-  linux /live/vmlinuz boot=live components console=ttyS0,115200n8 systemd.show_status=true
+  linux /live/vmlinuz boot=live components username=portable user-fullname=Portable-Linux console=ttyS0,115200n8 systemd.show_status=true
   initrd /live/initrd.img
 }
 EOF
