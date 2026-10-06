@@ -34,7 +34,7 @@ jobs:
         run: sudo bash scripts/build/build-iso.sh
       - name: Normalize build artifact ownership
         run: |
-          sudo chown "$USER:$USER" dist/protable-linux-installer-amd64.iso dist/protable-linux-installer-amd64.iso.sha256
+          sudo chown -R "$USER:$USER" dist
       - name: Validate ISO
         run: |
           file dist/protable-linux-installer-amd64.iso
