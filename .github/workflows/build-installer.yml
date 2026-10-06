@@ -32,6 +32,9 @@ jobs:
           test -f build/rootfs/etc/systemd/system/portable-swap.service
       - name: Build bootable ISO
         run: sudo bash scripts/build/build-iso.sh
+      - name: Normalize build artifact ownership
+        run: |
+          sudo chown "$USER:$USER" dist/protable-linux-installer-amd64.iso dist/protable-linux-installer-amd64.iso.sha256
       - name: Validate ISO
         run: |
           file dist/protable-linux-installer-amd64.iso
