@@ -1,0 +1,185 @@
+Portable-Linux v0.1.0 — Quick Installation Guide
+=================================================
+
+Portable-Linux is a persistent USB operating system. Install it to a USB drive,
+boot from that USB, and keep your applications, settings, files, and projects
+on the USB itself.
+
+IMPORTANT SAFETY WARNING
+------------------------
+The installation process ERASES the selected USB drive.
+
+Before installing:
+1. Back up anything important from the USB drive.
+2. Identify the USB drive carefully by its model and capacity.
+3. NEVER select your computer's internal SSD/HDD.
+4. The installer is designed to fail closed when the target cannot be safely
+   identified.
+
+WHAT YOU NEED
+-------------
+- A 64-bit Intel/AMD PC with UEFI firmware.
+- A USB drive. A 64 GB drive is a suitable reference size.
+- Another working computer to download the ISO and create the boot USB.
+- The v0.1.0 ISO from the GitHub Release page.
+- For the first release, UEFI boot is the supported path.
+
+STEP 1 — DOWNLOAD
+-----------------
+Download these files from the v0.1.0 release:
+- protable-linux-installer-amd64.iso
+- protable-linux-installer-amd64.iso.sha256
+
+Optionally download the manifest:
+- protable-linux-installer-amd64.manifest.txt
+
+Verify the ISO checksum before writing it to USB.
+
+Linux:
+  sha256sum -c protable-linux-installer-amd64.iso.sha256
+
+Windows:
+  Use a SHA-256 capable checksum utility and compare the result with the
+  value in the .sha256 file.
+
+STEP 2 — WRITE THE ISO TO A TEMPORARY USB
+------------------------------------------
+Use a USB-writing tool such as Rufus, balenaEtcher, GNOME Disks, or
+another trusted ISO writer.
+
+IMPORTANT:
+This temporary boot USB is the installer media. It is NOT the USB that will
+become your persistent Portable-Linux system.
+
+If you only have one USB drive, you can write the ISO to it and use another
+suitable USB drive as the installation target only if the installer workflow
+allows both devices to be present. Never overwrite the installer media.
+
+STEP 3 — BOOT THE INSTALLER
+----------------------------
+1. Insert the installer USB.
+2. Reboot the computer.
+3. Open the firmware/boot menu (commonly F12, F9, Esc, F8, or a vendor key).
+4. Select the USB device in UEFI mode.
+5. Start the Portable-Linux installer/live environment.
+
+If Secure Boot prevents booting, temporarily disable Secure Boot in firmware
+if necessary. Re-enable it after testing if your hardware permits.
+
+STEP 4 — IDENTIFY THE TARGET USB
+--------------------------------
+Open a terminal in the installer environment.
+
+List storage devices:
+
+  lsblk -o NAME,MODEL,SERIAL,SIZE,TRAN,TYPE,MOUNTPOINTS
+
+Find the USB target by:
+- MODEL
+- SIZE
+- TRAN=usb
+- device path
+
+Example:
+  /dev/sdb
+
+DO NOT GUESS THE DEVICE PATH.
+
+The target must be the USB drive you intend to erase.
+
+STEP 5 — INSTALL TO THE USB
+----------------------------
+The production installer requires an explicit confirmation of the exact
+target device.
+
+The intended command is:
+
+  sudo PORTABLE_LINUX_CONFIRM_TARGET=/dev/sdX     /usr/local/bin/portable-install /dev/sdX
+
+Replace /dev/sdX with the actual USB device.
+
+The installer will:
+- verify the target is a block device;
+- verify it is a removable USB/MMC target;
+- require exact target confirmation;
+- unmount the target;
+- create a 512 MiB FAT32 EFI System Partition;
+- create one ext4 root partition using the remaining space;
+- install the Portable-Linux root filesystem;
+- configure fstab;
+- install the removable UEFI bootloader;
+- sync all writes before completion.
+
+There is NO separate /home partition.
+
+STEP 6 — FIRST BOOT
+-------------------
+1. Safely shut down or reboot after installation completes.
+2. Remove the original installer USB if it is different from the installed
+   Portable-Linux USB.
+3. Boot from the installed USB in UEFI mode.
+4. Select the USB from the firmware boot menu if it is not automatically used.
+
+Portable-Linux should start from the USB.
+
+PERSISTENCE TEST
+----------------
+After the first successful boot:
+1. Create a test file on the desktop or in the home directory.
+2. Change a desktop setting.
+3. Shut down completely.
+4. Boot from the same USB again.
+5. Confirm the file and setting are still present.
+
+This verifies that you are using the persistent installed system rather than
+an ephemeral live session.
+
+SECOND-PC TEST
+--------------
+For true portability, repeat the boot test on a second compatible PC.
+
+The USB installation is intended to discover the second machine's hardware
+at boot rather than depending on the first PC's internal storage.
+
+STORAGE LAYOUT
+--------------
+The v0.1.0 installer uses:
+
+  EFI System Partition    ~512 MiB   FAT32
+  Root                    remaining  ext4
+  /home                   inside root
+  /var                    inside root
+  swap                    swapfile inside root, max 4 GiB
+  ZRAM                    preferred primary swap when enabled
+
+The installer does not intentionally create a separate swap partition.
+
+TROUBLESHOOTING
+---------------
+USB does not appear in the boot menu:
+- Check that UEFI boot is enabled.
+- Try another USB port.
+- Recreate the installer USB.
+- Check firmware USB boot settings.
+
+Installer refuses the target:
+- Stop and do not bypass the safety checks.
+- Run lsblk again and verify MODEL, SIZE, TRAN, and device path.
+- Make sure the target is not mounted.
+- Make sure you selected the removable USB drive, not an internal disk.
+
+System boots the installer but not the installed USB:
+- Confirm the installed USB has an EFI/BOOT/BOOTX64.EFI loader.
+- Use the firmware's UEFI boot menu and select the installed USB.
+- Test with Secure Boot disabled if firmware policy blocks the bootloader.
+
+IMPORTANT LIMITATION OF v0.1.0
+------------------------------
+v0.1.0 is the first installer milestone. UEFI is the primary supported boot
+path. BIOS/Legacy compatibility, full-root encryption, recovery tooling, and
+additional hardware-specific validation are planned for later releases.
+
+For the full installer contract and safety model, see:
+  docs/installer.md
+  docs/storage-layout.md
+  docs/release-acceptance.md
